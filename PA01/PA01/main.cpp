@@ -1,8 +1,6 @@
 #include <iostream>
 #include <string>
 #include "db.h"
-#include <map>
-
 
 using namespace std;
 
@@ -17,6 +15,7 @@ int main()
     string command;
     string item;
     string name;
+    string function;
     int index = 0;
     int numDBs = 0;
     int numTbls = 0;
@@ -35,8 +34,9 @@ int main()
         cin.getline(nextLine, 200, ';');
         string fullCommand(nextLine);
 
-        if(fullCommand.find("EXIT") == 0)
+        if(fullCommand.compare("EXIT") == 0 || fullCommand.compare("\nEXIT") == 0)
             return 0;
+        
         
         string params;
         command = fullCommand.substr(0,fullCommand.find(spaceDelim));
@@ -47,16 +47,24 @@ int main()
 
         name = fullCommand.substr(0,fullCommand.find(spaceDelim));
         fullCommand.erase(0, fullCommand.find(spaceDelim) + spaceDelim.length());
+        
+
         if(fullCommand[0] == '(')
         {
-            params = fullCommand.substr(1, fullCommand.find(')') - 1);
+            params = fullCommand.substr(1, fullCommand.find(')'));
         }
 
+        if(command.compare("ALTER") == 0 || command.compare("\nALTER") == 0)
+        {
+            function = fullCommand.substr(0,fullCommand.find(spaceDelim));
+            fullCommand.erase(0, fullCommand.find(spaceDelim) + spaceDelim.length());
+
+            params = fullCommand;
+            
+        }
 
         if(command.compare("USE") == 0 || command.compare("\nUSE") == 0)
             {
-                //if name in map
-                //cout << "Using " + name + "." << endl;
                 int useIndex = 0;
                 while(dbs[useIndex].useFlag != true )
                 {
@@ -70,6 +78,7 @@ int main()
                     {   
                         dbs[j].useFlag = true;
                         found = true;
+                        cout << "Using Database "  + item + "." << endl; 
                     }
 
                     else
@@ -85,16 +94,56 @@ int main()
                     cout << "Cannot use " + item + " because it does not exist." << endl; 
                 }
             }
+
+        else if(command.compare("SELECT") == 0 || command.compare("\nSELECT") == 0)
+        {
+            int useDB = 0;
+            params = fullCommand;
+            while(dbs[useDB].useFlag == false)
+            {
+                useDB++;    
+            }
+
+            if(dbs[useDB].numTbls > 0)
+            {
+               
+                for(int i = 0; i < dbs[useDB].numTbls; i++)
+                {
+                    if(dbs[useDB].arrTables[i].name == params)
+                    {
+                        
+                        cout << dbs[useDB].arrTables[i].element << endl;
+                    }
+                    cout << dbs[useDB].arrTables[i].name + "      "  + params + "    " <<endl; 
+                    if(i == dbs[useDB].numTbls && dbs[useDB].arrTables[i].name != params)
+                    {
+                        cout << "Table " + params + " does not exist in " + dbs[useDB].name + "." << endl;
+                    }
+                }
+
+            }
+
+            else
+            {
+                cout << "!Failed to query table " + params + " because it does not exist." << endl;
+            }
+
+            
+        }
         
         else if(item.compare("DATABASE") == 0 || item.compare("\nDATABASE") == 0)
         {
             //Database commands logic
+            //Create Database Command
             if(command.compare("CREATE") == 0 || command.compare("\nCREATE") == 0)
             {
-                //if db already in map
-                //cout << "!Failed to create database" + name(db_1) " because it already exists." << endl;
+                //Check to see if the database is in the database array.
+                    //If it is, return an error.
+
+                    //If it is not, create it and add it to the dbs array at numDBd
                 if(numDBs >= 0)
                 {
+                    //Checking to see if Database of name already exists
                     for(int i = 0; i < numDBs; i++)
                     {
                         if(dbs[i].name == name)
@@ -116,22 +165,27 @@ int main()
                  }
 
             }
+            //Drop Database command
             
             else if(command.compare("\nDROP") == 0 || command.compare("DROP") == 0)
             {
-                //if map contains name, delete it
+                
                 
                 int dbIndex = 0;
                 while(dbs[dbIndex].name != name)
                 {
                     dbIndex++;
+                    if(dbIndex > numDBs)
+                        break;
                 }
 
-                if(dbIndex == numDBs)
+                //if database to drop exists is not in the dbs array, notify user of error.
+                if(dbIndex >= numDBs)
                 {
                     cout << "!Failed to delete " + name + " because it does not exist." << endl;
                 }
 
+                //if it does exist, deleter it and shuffle the databases down the array.
                 else
                 {
                     for(dbIndex;dbIndex < numDBs;dbIndex++)
@@ -147,11 +201,14 @@ int main()
             
         }
         
+        //Table Commands
         else if(item.compare("TABLE") == 0 || item.compare("\nTABLE") == 0)
         {
-            //Table commands logic
+            //Table Create Command
             if(command.compare("CREATE") == 0 || command.compare("\nCREATE") == 0)
             {
+                bool tblExists = false;
+                //Find which database is in use, then break out.
                 int useDB = 0;
                 for(useDB; useDB < numDBs; useDB++)
                 {
@@ -165,21 +222,30 @@ int main()
                 {
                     for(int i = 0; i < numTbls; i++)
                     {
+                        //If table exists in database array of tables
                         if(dbs[useDB].arrTables[i].name == name)
                         {
                             cout << "!Failed to create table" + name + " because it already exists." << endl;
+                            tblExists = true;
                         }
                     }
 
-                    if(dbExists == false)
+                    if(tblExists == false)
                     {
                         Table tb;
                         dbs[useDB].arrTables[numTbls] = tb;
                         dbs[useDB].arrTables[numTbls].name = name;
+
+                        while(params.find(',') != -1)
+                        {
+                            params.insert(params.find(','), " |");
+                            params.erase(params.find(','), 1);
+                        }
+
                         dbs[useDB].arrTables[numTbls].element = params;
                         cout << "Table " + name + " created."<<endl;
-                        cout<<dbs[useDB].arrTables[numTbls].element<<endl;
                         numTbls++;
+                        dbs[useDB].numTbls++;
                     }
                     
                  }
@@ -201,9 +267,11 @@ int main()
                 while(dbs[useDB].arrTables[tblIndex].name != name)
                 {
                     tblIndex++;
+                    if(tblIndex > numTbls)
+                        break;
                 }
 
-                if(tblIndex == numTbls)
+                if(tblIndex >= numTbls)
                 {
                     cout << "!Failed to delete " + name + " because it does not exist." << endl;
                 }
@@ -214,38 +282,48 @@ int main()
                     for(tblIndex = 0;tblIndex < numTbls;tblIndex++)
                     {
                         dbs[useDB].arrTables[tblIndex] = dbs[useDB].arrTables[tblIndex+1];
-                        cout << tblIndex << endl;
                     }
-
+                    
                     numTbls--;
                     cout << "Table " + name + " deleted." << endl;
                 }
                 
-                //if tbl in map _tbls
-                //delete it
-                //cout << "Table " + name(tbl_1) + " deleted." << endl;
-                
-                //else
-                //cout << "!Failed to delete " + name(tbl_1) +  " because it does not exist." << endl;
-                
-            }
-            
-            else if(command.compare("SELECT") == 0 || command.compare("\nSELECT") == 0)
-            {
-                //if tbl in _tbls map
-                //cout << table << endl;
-                
-                //else
-                //cout << "Could not select " + name + " because it does not exist." << endl;
             }
             
             else if(command.compare("ALTER") == 0 || command.compare("\nALTER") == 0)
             {
                 //if tbl in _tbls map
                 //add the item into the table
-                
-                //else
-                //cout << "Could not alter " + name + " because it does not exist." << endl;
+                int useDB = 0;
+                params = fullCommand;
+                while(dbs[useDB].useFlag == false)
+                {
+                    useDB++;    
+                }
+
+                if(numTbls > 0)
+                {
+                    for(int i = 0; i < numTbls; i++)
+                    {
+                        if(dbs[useDB].arrTables[i].name.compare(name) == 0)
+                        {
+                            dbs[useDB].arrTables[i].element = dbs[useDB].arrTables[i].element + " | " + params;
+                            cout << "Table " + dbs[useDB].arrTables[i].name + " modified." << endl;
+                        }
+
+                        else
+                        {
+                            cout << "Table " + params + " does not exist in " + dbs[useDB].name + "." << endl;
+                        }
+                    }
+
+                }
+
+                else
+                {
+                    cout << "No tables in" + dbs[useDB].name + ". Cannot add to non-existing table." << endl;
+                }
+
             }
             
             else

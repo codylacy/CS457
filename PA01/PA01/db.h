@@ -55,6 +55,7 @@ class Database
 	bool useFlag;
 	string name;
 	Table arrTables[50];
+    int numTbls;
 
 };
 
